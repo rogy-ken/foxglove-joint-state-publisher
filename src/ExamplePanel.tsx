@@ -5,6 +5,8 @@ import { useLayoutEffect, useEffect, useState, useCallback } from "react";
 import ReactDOM from "react-dom";
 
 import { JointInfo, getMoveableJoint } from "./RobotDescription";
+import { makeHeader } from "./schema/Header";
+import { JointState } from "./schema/JointState";
 
 type State = {
   topic: {
@@ -17,6 +19,7 @@ type StringMessage = MessageEvent<{ data: string }>;
 function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<readonly Topic[] | undefined>();
   const [jointInfos, setJointInfos] = useState<JointInfo[]>();
+  const [jointState, setJointState] = useState<JointState>();
 
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
 
@@ -82,7 +85,12 @@ function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Elem
         const message = renderState.currentFrame[
           renderState.currentFrame.length - 1
         ] as StringMessage;
-        setJointInfos(getMoveableJoint(message.message.data));
+        const joints = getMoveableJoint(message.message.data);
+        setJointInfos(joints);
+        setJointState({
+          name: joints.map((joint) => joint.name),
+          position: joints.map((joint) => joint.center),
+        });
       }
     };
     context.watch("topics");
@@ -98,13 +106,37 @@ function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Elem
     renderDone?.();
   }, [renderDone]);
 
+  useEffect(() => {
+    if (context.advertise) {
+      context.advertise("/joint_states", "sensor_msgs/msg/JointState");
+    }
+  });
+
+  useEffect(() => {
+    if (!context.publish || !jointState) {
+      return;
+    }
+    jointState.header = makeHeader();
+    context.publish("/joint_states", jointState);
+  }, [context, jointState]);
+
   return (
     <div style={{ padding: "1rem", display: "flex", flexDirection: "column", maxHeight: "100%" }}>
-      {jointInfos?.map((joint) => (
+      {jointInfos?.map((joint, index) => (
         <div key={joint.name}>
           <div>{joint.name} </div>
-          <div>{joint.limit.lower} </div>
-          <div>{joint.limit.upper} </div>
+          <input
+            type="number"
+            value={jointState?.position[index]}
+            onChange={(event) => {
+              if (jointState) {
+                jointState.position[index] = Number(event.target.value);
+                setJointState(structuredClone(jointState));
+              }
+            }}
+            min={joint.limit.lower}
+            max={joint.limit.upper}
+          />
         </div>
       ))}
     </div>
