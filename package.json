@@ -18,6 +18,7 @@
     "pretest": "foxglove-extension pretest"
   },
   "devDependencies": {
+    "@chakra-ui/react": "^2.8.2",
     "@foxglove/eslint-plugin": "1.0.1",
     "@foxglove/extension": "2.7.0",
     "@foxglove/schemas": "^1.6.3",
