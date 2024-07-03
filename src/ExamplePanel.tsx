@@ -97,8 +97,8 @@ function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Elem
         const joints = getMoveableJoint(message.message.data);
         setJointInfos(joints);
         setJointState({
-          name: joints.map((joint) => joint.name),
-          position: joints.map((joint) => joint.center),
+          name: joints.map((joint) => joint.name ?? ""),
+          position: joints.map((joint) => joint.center ?? 0),
         });
       }
     };
@@ -147,8 +147,8 @@ function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Elem
                     setJointState(structuredClone(jointState));
                   }
                 }}
-                min={joint.limit.lower}
-                max={joint.limit.upper}
+                min={joint.limit?.lower ?? -10}
+                max={joint.limit?.upper ?? 10}
                 step={0.01}
               >
                 <SliderTrack>
