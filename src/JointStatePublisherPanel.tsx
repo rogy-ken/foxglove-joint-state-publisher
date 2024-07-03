@@ -25,7 +25,7 @@ type State = {
 
 type StringMessage = MessageEvent<{ data: string }>;
 
-function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Element {
+function JointStatePublisherPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<readonly Topic[] | undefined>();
   const [jointInfos, setJointInfos] = useState<JointInfo[]>();
   const [jointState, setJointState] = useState<JointState>();
@@ -164,8 +164,8 @@ function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Elem
   );
 }
 
-export function initExamplePanel(context: PanelExtensionContext): () => void {
-  ReactDOM.render(<ExamplePanel context={context} />, context.panelElement);
+export function initJointStatePublisherPanel(context: PanelExtensionContext): () => void {
+  ReactDOM.render(<JointStatePublisherPanel context={context} />, context.panelElement);
 
   // Return a function to run when the panel is removed
   return () => {
