@@ -1,3 +1,12 @@
+import {
+  Slider,
+  SliderTrack,
+  SliderFilledTrack,
+  SliderThumb,
+  ChakraProvider,
+  VStack,
+  Box,
+} from "@chakra-ui/react";
 import { PanelExtensionContext, Topic, MessageEvent, SettingsTreeAction } from "@foxglove/studio";
 import produce from "immer";
 import { set } from "lodash";
@@ -122,23 +131,35 @@ function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Elem
 
   return (
     <div style={{ padding: "1rem", display: "flex", flexDirection: "column", maxHeight: "100%" }}>
-      {jointInfos?.map((joint, index) => (
-        <div key={joint.name}>
-          <div>{joint.name} </div>
-          <input
-            type="number"
-            value={jointState?.position[index]}
-            onChange={(event) => {
-              if (jointState) {
-                jointState.position[index] = Number(event.target.value);
-                setJointState(structuredClone(jointState));
-              }
-            }}
-            min={joint.limit.lower}
-            max={joint.limit.upper}
-          />
-        </div>
-      ))}
+      <ChakraProvider>
+        <VStack spacing="15px">
+          {jointInfos?.map((joint, index) => (
+            <Box key={joint.name} w="100%">
+              <div>
+                {joint.name}: {jointState?.position[index]}
+              </div>
+              <Slider
+                aria-label={joint.name}
+                defaultValue={jointState?.position[index]}
+                onChange={(value) => {
+                  if (jointState) {
+                    jointState.position[index] = value;
+                    setJointState(structuredClone(jointState));
+                  }
+                }}
+                min={joint.limit.lower}
+                max={joint.limit.upper}
+                step={0.01}
+              >
+                <SliderTrack>
+                  <SliderFilledTrack />
+                </SliderTrack>
+                <SliderThumb />
+              </Slider>
+            </Box>
+          ))}
+        </VStack>
+      </ChakraProvider>
     </div>
   );
 }
