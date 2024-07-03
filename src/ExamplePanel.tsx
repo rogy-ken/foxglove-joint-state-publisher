@@ -4,6 +4,8 @@ import { set } from "lodash";
 import { useLayoutEffect, useEffect, useState, useCallback } from "react";
 import ReactDOM from "react-dom";
 
+import { JointInfo, getMoveableJoint } from "./RobotDescription";
+
 type State = {
   topic: {
     name?: string;
@@ -14,7 +16,7 @@ type StringMessage = MessageEvent<{ data: string }>;
 
 function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<readonly Topic[] | undefined>();
-  const [message, setMessage] = useState<StringMessage>();
+  const [jointInfos, setJointInfos] = useState<JointInfo[]>();
 
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
 
@@ -77,7 +79,10 @@ function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Elem
       setRenderDone(() => done);
       setTopics(renderState.topics);
       if (renderState.currentFrame && renderState.currentFrame.length > 0) {
-        setMessage(renderState.currentFrame[renderState.currentFrame.length - 1] as StringMessage);
+        const message = renderState.currentFrame[
+          renderState.currentFrame.length - 1
+        ] as StringMessage;
+        setJointInfos(getMoveableJoint(message.message.data));
       }
     };
     context.watch("topics");
@@ -95,7 +100,13 @@ function ExamplePanel({ context }: { context: PanelExtensionContext }): JSX.Elem
 
   return (
     <div style={{ padding: "1rem", display: "flex", flexDirection: "column", maxHeight: "100%" }}>
-      <p>{message?.message.data}</p>
+      {jointInfos?.map((joint) => (
+        <div key={joint.name}>
+          <div>{joint.name} </div>
+          <div>{joint.limit.lower} </div>
+          <div>{joint.limit.upper} </div>
+        </div>
+      ))}
     </div>
   );
 }
