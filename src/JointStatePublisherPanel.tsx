@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import {
   Slider,
   SliderTrack,
@@ -18,8 +19,12 @@ import { makeHeader } from "./schema/Header";
 import { JointState } from "./schema/JointState";
 
 type State = {
-  topic: {
-    name?: string;
+  robotDescription: {
+    topic?: string;
+  };
+  publish: {
+    topic?: string;
+    hz?: number;
   };
 };
 
@@ -55,16 +60,16 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
     }
   };
 
-  if (context.advertise) {
-    context.advertise("/joint_states", "sensor_msgs/msg/JointState");
-  }
-
   // Build our panel state from the context's initialState, filling in any possibly missing values.
   const [state, setState] = useState<State>(() => {
     const partialState = context.initialState as Partial<State>;
     return {
-      topic: {
-        name: partialState.topic?.name ?? "/robot_description",
+      robotDescription: {
+        topic: partialState.robotDescription?.topic ?? "/robot_description",
+      },
+      publish: {
+        topic: partialState.publish?.topic ?? "/joint_states",
+        hz: partialState.publish?.hz ?? 10,
       },
     };
   });
@@ -86,35 +91,54 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
     context.updatePanelSettingsEditor({
       actionHandler,
       nodes: {
-        topic: {
-          label: "Topic",
+        robotDescription: {
+          label: "Robot Description",
           icon: "Cube",
           fields: {
-            name: {
+            topic: {
               label: "Topic",
               input: "select",
               options: topicOptions,
-              value: state.topic.name,
+              value: state.robotDescription.topic,
+            },
+          },
+        },
+        publish: {
+          label: "Publish",
+          icon: "Cube",
+          fields: {
+            topic: {
+              label: "Topic",
+              input: "string",
+              value: state.publish.topic,
+            },
+            hz: {
+              label: "Hz",
+              input: "number",
+              value: state.publish.hz,
             },
           },
         },
       },
     });
-  }, [context, state, topics]);
+  }, [state, topics]);
 
   useLayoutEffect(() => {
-    if (state.topic.name) {
-      context.subscribe([{ topic: state.topic.name }]);
+    if (state.robotDescription.topic) {
+      context.subscribe([{ topic: state.robotDescription.topic }]);
     }
-  }, [context, state.topic.name]);
+    if (context.advertise && state.publish.topic) {
+      context.advertise(state.publish.topic, "sensor_msgs/msg/JointState");
+    }
+  }, [state]);
 
   useEffect(() => {
-    if (!context.publish || !jointState) {
+    if (!context.publish || !jointState || !state.publish.topic) {
       return;
     }
     jointState.header = makeHeader();
-    context.publish("/joint_states", jointState);
-  }, [context, jointState]);
+    context.publish(state.publish.topic, jointState);
+  }, [jointState]);
 
   return (
     <div style={{ padding: "1rem", display: "flex", flexDirection: "column", maxHeight: "100%" }}>
