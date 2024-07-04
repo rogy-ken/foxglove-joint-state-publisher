@@ -31,6 +31,33 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
   const [jointState, setJointState] = useState<JointState>();
 
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
+  // invoke the done callback once the render is complete
+  useEffect(() => {
+    renderDone?.();
+  }, [renderDone]);
+
+  context.watch("topics");
+  context.watch("currentFrame");
+
+  context.onRender = (renderState, done) => {
+    setRenderDone(() => done);
+    setTopics(renderState.topics);
+    if (renderState.currentFrame && renderState.currentFrame.length > 0) {
+      const message = renderState.currentFrame[
+        renderState.currentFrame.length - 1
+      ] as StringMessage;
+      const joints = getMoveableJoint(message.message.data);
+      setJointInfos(joints);
+      setJointState({
+        name: joints.map((joint) => joint.name ?? ""),
+        position: joints.map((joint) => joint.center ?? 0),
+      });
+    }
+  };
+
+  if (context.advertise) {
+    context.advertise("/joint_states", "sensor_msgs/msg/JointState");
+  }
 
   // Build our panel state from the context's initialState, filling in any possibly missing values.
   const [state, setState] = useState<State>(() => {
@@ -44,12 +71,11 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
 
   // Update the settings editor every time our state or the list of available topics changes.
   useEffect(() => {
-    context.saveState(state);
-
     const actionHandler = (action: SettingsTreeAction) => {
       if (action.action === "update") {
         const { path, value } = action.payload;
         setState(produce((draft: State) => set(draft, path, value)));
+        context.saveState(state);
       }
     };
 
@@ -76,42 +102,11 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
     });
   }, [context, state, topics]);
 
-  // We use a layout effect to setup render handling for our panel. We also setup some topic
-  // subscriptions.
   useLayoutEffect(() => {
-    context.onRender = (renderState, done) => {
-      setRenderDone(() => done);
-      setTopics(renderState.topics);
-      if (renderState.currentFrame && renderState.currentFrame.length > 0) {
-        const message = renderState.currentFrame[
-          renderState.currentFrame.length - 1
-        ] as StringMessage;
-        const joints = getMoveableJoint(message.message.data);
-        setJointInfos(joints);
-        setJointState({
-          name: joints.map((joint) => joint.name ?? ""),
-          position: joints.map((joint) => joint.center ?? 0),
-        });
-      }
-    };
-    context.watch("topics");
-    context.watch("currentFrame");
-
     if (state.topic.name) {
       context.subscribe([{ topic: state.topic.name }]);
     }
   }, [context, state.topic.name]);
-
-  // invoke the done callback once the render is complete
-  useEffect(() => {
-    renderDone?.();
-  }, [renderDone]);
-
-  useEffect(() => {
-    if (context.advertise) {
-      context.advertise("/joint_states", "sensor_msgs/msg/JointState");
-    }
-  });
 
   useEffect(() => {
     if (!context.publish || !jointState) {
