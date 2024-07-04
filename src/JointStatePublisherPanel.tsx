@@ -10,7 +10,7 @@ import {
 import { PanelExtensionContext, Topic, MessageEvent, SettingsTreeAction } from "@foxglove/studio";
 import produce from "immer";
 import { set } from "lodash";
-import { useLayoutEffect, useEffect, useState, useCallback } from "react";
+import { useLayoutEffect, useEffect, useState } from "react";
 import ReactDOM from "react-dom";
 
 import { JointInfo, getMoveableJoint } from "./RobotDescription";
@@ -42,24 +42,16 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
     };
   });
 
-  // Respond to actions from the settings editor to update our state.
-  const actionHandler = useCallback(
-    (action: SettingsTreeAction) => {
-      if (action.action === "update") {
-        const { path, value } = action.payload;
-        setState(produce((draft: State) => set(draft, path, value)));
-
-        if (path[0] === "topic") {
-          context.subscribe([{ topic: value as string }]);
-        }
-      }
-    },
-    [context],
-  );
-
   // Update the settings editor every time our state or the list of available topics changes.
   useEffect(() => {
     context.saveState(state);
+
+    const actionHandler = (action: SettingsTreeAction) => {
+      if (action.action === "update") {
+        const { path, value } = action.payload;
+        setState(produce((draft: State) => set(draft, path, value)));
+      }
+    };
 
     const topicOptions = (topics ?? [])
       .filter((topic) => topic.schemaName === "std_msgs/msg/String")
@@ -82,7 +74,7 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
         },
       },
     });
-  }, [context, actionHandler, state, topics]);
+  }, [context, state, topics]);
 
   // We use a layout effect to setup render handling for our panel. We also setup some topic
   // subscriptions.
