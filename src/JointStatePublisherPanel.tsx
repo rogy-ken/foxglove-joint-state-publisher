@@ -157,7 +157,7 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
           {jointInfos.map((joint, index) => (
             <Box key={joint.name} w="100%">
               <div>
-                {joint.name}: {jointState?.position[index]}
+                {joint.name}: {jointState?.position[index]?.toFixed(2)}
               </div>
               <Slider
                 aria-label={joint.name}
