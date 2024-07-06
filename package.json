@@ -1,11 +1,11 @@
 {
   "name": "joint-state-publisher",
   "displayName": "joint-state-publisher",
-  "description": "",
-  "publisher": "unknown",
+  "description": "Joint State Publisher Extension for Foxglove",
+  "publisher": "rogy-ken",
   "homepage": "",
-  "version": "0.0.0",
-  "license": "UNLICENSED",
+  "version": "0.1.0",
+  "license": "MIT",
   "main": "./dist/extension.js",
   "keywords": [],
   "scripts": {
