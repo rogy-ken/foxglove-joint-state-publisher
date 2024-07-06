@@ -9,9 +9,8 @@ import {
   Box,
 } from "@chakra-ui/react";
 import { PanelExtensionContext, Topic, MessageEvent, SettingsTreeAction } from "@foxglove/studio";
-import produce from "immer";
 import { set } from "lodash";
-import { useLayoutEffect, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 
 import { JointInfo, getMoveableJoint } from "./RobotDescription";
@@ -20,20 +19,21 @@ import { JointState } from "./schema/JointState";
 
 type State = {
   robotDescription: {
-    topic?: string;
+    topic: string;
   };
   publish: {
-    topic?: string;
-    hz?: number;
+    topic: string;
+    hz: number;
   };
 };
 
 type StringMessage = MessageEvent<{ data: string }>;
 
 function JointStatePublisherPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
-  const [topics, setTopics] = useState<readonly Topic[] | undefined>();
-  const [jointInfos, setJointInfos] = useState<JointInfo[]>();
+  const [topics, setTopics] = useState<readonly Topic[]>([]);
+  const [jointInfos, setJointInfos] = useState<JointInfo[]>([]);
   const [jointState, setJointState] = useState<JointState>();
+  const jointStateRef = useRef<JointState>();
 
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
   // invoke the done callback once the render is complete
@@ -46,7 +46,7 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
 
   context.onRender = (renderState, done) => {
     setRenderDone(() => done);
-    setTopics(renderState.topics);
+    setTopics(renderState.topics ?? []);
     if (renderState.currentFrame && renderState.currentFrame.length > 0) {
       const message = renderState.currentFrame[
         renderState.currentFrame.length - 1
@@ -69,27 +69,18 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
       },
       publish: {
         topic: partialState.publish?.topic ?? "/joint_states",
-        hz: partialState.publish?.hz ?? 10,
+        hz: partialState.publish?.hz ?? 30,
       },
     };
   });
 
   // Update the settings editor every time our state or the list of available topics changes.
   useEffect(() => {
-    const actionHandler = (action: SettingsTreeAction) => {
-      if (action.action === "update") {
-        const { path, value } = action.payload;
-        setState(produce((draft: State) => set(draft, path, value)));
-        context.saveState(state);
-      }
-    };
-
-    const topicOptions = (topics ?? [])
+    const topicOptions = topics
       .filter((topic) => topic.schemaName === "std_msgs/msg/String")
       .map((topic) => ({ value: topic.name, label: topic.name }));
 
     context.updatePanelSettingsEditor({
-      actionHandler,
       nodes: {
         robotDescription: {
           label: "Robot Description",
@@ -116,35 +107,54 @@ function JointStatePublisherPanel({ context }: { context: PanelExtensionContext 
               label: "Hz",
               input: "number",
               value: state.publish.hz,
+              step: 1,
+              max: 100,
+              min: 1,
             },
           },
         },
       },
+      actionHandler: (action: SettingsTreeAction) => {
+        if (action.action === "update") {
+          const { path, value } = action.payload;
+          setState(structuredClone(set(state, path, value)));
+        }
+      },
     });
   }, [state, topics]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
+    context.saveState(state);
+
     if (state.robotDescription.topic) {
       context.subscribe([{ topic: state.robotDescription.topic }]);
     }
-    if (context.advertise && state.publish.topic) {
+    if (context.advertise) {
       context.advertise(state.publish.topic, "sensor_msgs/msg/JointState");
     }
+
+    const publishIntervalId = setInterval(() => {
+      if (!context.publish || !jointStateRef.current) {
+        return;
+      }
+      jointStateRef.current.header = makeHeader();
+      context.publish(state.publish.topic, jointStateRef.current);
+    }, 1000 / state.publish.hz);
+
+    return () => {
+      clearInterval(publishIntervalId);
+    };
   }, [state]);
 
   useEffect(() => {
-    if (!context.publish || !jointState || !state.publish.topic) {
-      return;
-    }
-    jointState.header = makeHeader();
-    context.publish(state.publish.topic, jointState);
+    jointStateRef.current = jointState;
   }, [jointState]);
 
   return (
     <div style={{ padding: "1rem", display: "flex", flexDirection: "column", maxHeight: "100%" }}>
       <ChakraProvider>
         <VStack spacing="15px">
-          {jointInfos?.map((joint, index) => (
+          {jointInfos.map((joint, index) => (
             <Box key={joint.name} w="100%">
               <div>
                 {joint.name}: {jointState?.position[index]}
