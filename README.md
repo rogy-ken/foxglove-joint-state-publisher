@@ -13,3 +13,9 @@ npm install
 ```
 npm run local-install
 ```
+
+### release
+
+```
+npm run package
+```
